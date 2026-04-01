@@ -18,7 +18,7 @@ com o objetivo de colaborar na **detecção precoce de sinais de Esclerose Múlt
 - Para obter resultados robustos, o ideal seria treinar o modelo por **200+ epochs e com mais imagens**, o que demanda alto poder de processamento.
 - Este README será atualizado à medida que o treinamento avance e os resultados melhorem.
 
-## Alguns resultados por enquanto - MUITO BAIXOS
+## Alguns resultados por enquanto - MUITO BAIXOS, SEM RESULTADO APARENTES
 
 <img width="274" height="98" alt="image" src="https://github.com/user-attachments/assets/2504a4c8-6e19-4f39-8a52-14530b5377a3" />
 <img width="988" height="710" alt="image" src="https://github.com/user-attachments/assets/14c3fcc7-61de-4d92-be0c-0e3eb6233244" />
