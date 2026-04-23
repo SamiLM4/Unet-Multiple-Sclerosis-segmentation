@@ -8,7 +8,18 @@ from fastapi.responses import StreamingResponse
 from fastapi.responses import JSONResponse
 import base64
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+# Configuração de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def create_overlay(image, mask):
