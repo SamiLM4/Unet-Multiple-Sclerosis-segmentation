@@ -1,3 +1,7 @@
+# ativar o .venv: .venv\Scripts\Activate.ps1
+# ativar a API: python -m uvicorn api:app --reload
+
+
 from fastapi import FastAPI, UploadFile, File
 from PIL import Image
 import io

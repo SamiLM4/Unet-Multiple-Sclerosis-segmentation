@@ -1,3 +1,5 @@
+# FAZ A MESMA COISA QUE O NOTEBOOK, PREFIRA EXECUTAR ESSE ARQUIVO PARA TREINAR O MODELO DE IA 
+
 import os
 import torch
 import torch.nn as nn

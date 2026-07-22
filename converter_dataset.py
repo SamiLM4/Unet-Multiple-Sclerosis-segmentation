@@ -1,3 +1,5 @@
+# ARQUIVO USADO PRA TRANSFORMAR DADOS NO FORMATO NIfTI PARA PNG
+
 import os
 import nibabel as nib
 import numpy as np

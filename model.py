@@ -1,3 +1,5 @@
+# MODELO DA IA (ESQUELETO)
+
 import torch
 import torch.nn as nn
 
