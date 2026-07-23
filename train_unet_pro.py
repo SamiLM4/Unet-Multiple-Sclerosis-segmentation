@@ -545,59 +545,28 @@ class UNet(nn.Module):
 
 class DiceLoss(nn.Module):
 
-
-    def __init__(
-        self,
-        smooth=1e-6
-    ):
-
+    def __init__(self, smooth=1e-6):
         super().__init__()
-
         self.smooth = smooth
 
 
+    def forward(self, logits, targets):
 
+        probs = torch.sigmoid(logits)
 
-    def forward(
-        self,
-        logits,
-        targets
-    ):
-
-
-        probs = torch.sigmoid(
-            logits
-        )
-
-
-        probs = probs.view(-1)
-
-        targets = targets.view(-1)
-
-
-
-        intersection = (
-            probs * targets
-        ).sum()
-
-
+        intersection = (probs * targets).sum(dim=(1,2,3))
 
         dice = (
-
-            2.0 * intersection
-            + self.smooth
-
+            2 * intersection + self.smooth
         ) / (
-
-            probs.sum()
-            + targets.sum()
-            + self.smooth
-
+            probs.sum(dim=(1,2,3))
+            +
+            targets.sum(dim=(1,2,3))
+            +
+            self.smooth
         )
 
-
-        return 1 - dice
-
+        return 1 - dice.mean()
 
 
 
@@ -1061,7 +1030,7 @@ def main(epochs):
 
         pos_weight=torch.tensor(
 
-            [10.0],
+            [50.0],
 
             device=device
 
@@ -1083,11 +1052,11 @@ def main(epochs):
 
         return (
 
-            bce(pred,target)
+            0.3 * bce(pred,target)
 
             +
 
-            dice_loss(pred,target)
+            0.7 * dice_loss(pred,target)
 
         )
 
