@@ -2,16 +2,23 @@
 # ativar a API: python -m uvicorn api:app --reload
 
 
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI, UploadFile, File
+# pyrefly: ignore [missing-import]
 from PIL import Image
+# pyrefly: ignore [missing-import]
 import io
+# pyrefly: ignore [missing-import]
 import numpy as np
+# pyrefly: ignore [missing-import]
 import cv2
 from inference import predict
+# pyrefly: ignore [missing-import]
 from fastapi.responses import StreamingResponse
+# pyrefly: ignore [missing-import]
 from fastapi.responses import JSONResponse
 import base64
-
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()

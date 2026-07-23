@@ -1,10 +1,15 @@
 # python test_interface.py
 
+# pyrefly: ignore [missing-import]
 import requests
 import tkinter as tk
+# pyrefly: ignore [missing-import]
 from tkinter import filedialog
+# pyrefly: ignore [missing-import]
 from PIL import Image
+# pyrefly: ignore [missing-import]
 import io
+# pyrefly: ignore [missing-import]
 import base64
 
 # URL da API

@@ -1,15 +1,25 @@
 # FAZ A MESMA COISA QUE O NOTEBOOK, PREFIRA EXECUTAR ESSE ARQUIVO PARA TREINAR O MODELO DE IA 
 
 import os
+# pyrefly: ignore [missing-import]
 import torch
+# pyrefly: ignore [missing-import]
 import torch.nn as nn
+# pyrefly: ignore [missing-import]
 import torch.optim as optim
+# pyrefly: ignore [missing-import]
 import numpy as np
-from torch.utils.data import Dataset, DataLoader, random_split
+# pyrefly: ignore [missing-import]
+from torch.utils.data import Dataset, DataLoader, Subset
+# pyrefly: ignore [missing-import]
 from torchvision import transforms
+# pyrefly: ignore [missing-import]
 from torchvision.transforms import InterpolationMode
+# pyrefly: ignore [missing-import]
 from PIL import Image
+# pyrefly: ignore [missing-import]
 from tqdm import tqdm
+# pyrefly: ignore [missing-import]
 import argparse
 
 
@@ -153,26 +163,53 @@ class DiceLoss(nn.Module):
 def dice_score(logits, targets, threshold=0.5):
 
     probs = torch.sigmoid(logits)
-
     probs = (probs > threshold).float()
 
-    probs = probs.view(-1)
-    targets = targets.view(-1)
+    intersection = (probs * targets).sum(dim=(1,2,3))
+    union = probs.sum(dim=(1,2,3)) + targets.sum(dim=(1,2,3))
 
-    intersection = (probs * targets).sum()
-    union = probs.sum() + targets.sum()
+    dice = (2 * intersection + 1e-6) / (union + 1e-6)
 
-    return (2. * intersection) / (union + 1e-6)
+    return dice.mean()
 
 
 ############################################
 # SPLIT DATASET
 ############################################
 
-def split_dataset(dataset, val_ratio=0.2):
-    val_size = int(len(dataset) * val_ratio)
-    train_size = len(dataset) - val_size
-    return random_split(dataset, [train_size, val_size])
+def split_dataset(dataset, val_ratio=0.2, seed=42):
+
+    np.random.seed(seed)
+
+    # Descobre quais pacientes existem
+    patients = sorted({
+        img.split("_")[1]
+        for img in dataset.images
+    })
+
+    np.random.shuffle(patients)
+
+    split = int(len(patients) * (1 - val_ratio))
+
+    train_patients = set(patients[:split])
+    val_patients = set(patients[split:])
+
+    train_indices = []
+    val_indices = []
+
+    for idx, img in enumerate(dataset.images):
+
+        patient = img.split("_")[1]
+
+        if patient in train_patients:
+            train_indices.append(idx)
+        else:
+            val_indices.append(idx)
+
+    train_dataset = Subset(dataset, train_indices)
+    val_dataset = Subset(dataset, val_indices)
+
+    return train_dataset, val_dataset
 
 
 ############################################
@@ -262,25 +299,54 @@ def main(epochs):
 
     model = UNet().to(device)
 
-    bce = nn.BCEWithLogitsLoss()
+    bce = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([20.0], device=device))
     dice_loss = DiceLoss()
 
     def criterion(pred, target):
         return bce(pred, target) + dice_loss(pred, target)
 
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
     model_path = "unet_mri_model.pth"
+    history_path = "training_history.csv"
+    start_epoch = 0
+    resuming = os.path.exists(model_path)
 
-    if os.path.exists(model_path):
+    best_val_dice = 0.0
+
+    if resuming:
         print("Carregando modelo existente...")
-        model.load_state_dict(torch.load(model_path, map_location=device))
+        try:
+            checkpoint = torch.load(model_path, map_location=device)
+            model.load_state_dict(checkpoint['model_state_dict'])
+            optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+            start_epoch = checkpoint['epoch']
+            best_val_dice = checkpoint.get('best_val_dice', 0.0)
 
-    best_val_dice = 0
+            write_mode = 'a' if os.path.exists(history_path) else 'w'
+            if write_mode == 'a':
+                try:
+                    with open(history_path, 'r', encoding='utf-8') as f:
+                        lines = f.readlines()
+                        if len(lines) > 1:
+                            last_line = lines[-1].strip().split(',')
+                            start_epoch = int(last_line[0])
+                except Exception:
+                    pass
+        except Exception as e:
+            print(f"Erro ao carregar modelo: {e}")
+            write_mode = 'w'
+    else:
+        write_mode = 'w'
+
+    if write_mode == 'w':
+        with open(history_path, 'w', encoding='utf-8') as f:
+            f.write("epoch,train_loss,train_dice,val_loss,val_dice\n")
+    
 
     for epoch in range(epochs):
-
-        print(f"\nEpoch {epoch+1}/{epochs}")
+        current_epoch = start_epoch + epoch + 1
+        print(f"\nEpoch {current_epoch}/{start_epoch + epochs}")
 
         train_loss, train_dice = train_epoch(
             model, train_loader, criterion, optimizer, device
@@ -293,10 +359,19 @@ def main(epochs):
         print(f"Train Loss: {train_loss:.4f} | Train Dice: {train_dice:.4f}")
         print(f"Val Loss:   {val_loss:.4f} | Val Dice:   {val_dice:.4f}")
 
+        # Salva o histórico no arquivo CSV
+        with open(history_path, 'a', encoding='utf-8') as f:
+            f.write(f"{current_epoch},{train_loss},{train_dice},{val_loss},{val_dice}\n")
+
         if val_dice > best_val_dice:
             best_val_dice = val_dice
-            torch.save(model.state_dict(), model_path)
-            print("🔥 Melhor modelo salvo!")
+            torch.save({
+                'epoch': current_epoch,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'best_val_dice': best_val_dice
+            }, model_path)
+            print("🔥 Melhor modelo salvou!")
 
     print("\nTreinamento finalizado!")
 

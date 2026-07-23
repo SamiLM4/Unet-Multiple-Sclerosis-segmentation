@@ -1,9 +1,14 @@
 # ARQUIVO USADO PRA TRANSFORMAR DADOS NO FORMATO NIfTI PARA PNG
 
 import os
+# pyrefly: ignore [missing-import]
 import nibabel as nib
+# pyrefly: ignore [missing-import]
 import numpy as np
+# pyrefly: ignore [missing-import]
 import cv2
+
+np.random.seed(42)
 
 input_folder = "dataset_original"
 output_images = "dataset/images"
@@ -14,7 +19,7 @@ os.makedirs(output_masks, exist_ok=True)
 
 index = 0
 
-for patient in os.listdir(input_folder):
+for patient in sorted(os.listdir(input_folder)):
 
     patient_path = os.path.join(input_folder, patient)
 
@@ -46,16 +51,24 @@ for patient in os.listdir(input_folder):
             img = flair[:,:,i]
             msk = mask[:,:,i]
 
+            # Mantém todas as imagens com lesão e apenas 50% das sem lesão
             if np.max(msk) == 0:
-                continue
+                if np.random.rand() > 0.30:
+                    continue
 
-            img = (img - img.min())/(img.max()-img.min())
-            img = (img*255).astype(np.uint8)
+            if img.max() > img.min():
+                img = (img - img.min()) / (img.max() - img.min())
+            else:
+                img = np.zeros_like(img)
 
+            img = (img * 255).astype(np.uint8)
             msk = (msk > 0).astype(np.uint8) * 255
 
-            cv2.imwrite(f"{output_images}/img_{index}.png", img)
-            cv2.imwrite(f"{output_masks}/mask_{index}.png", msk)
+            img_name = f"img_{patient}_{i}.png"
+            mask_name = f"mask_{patient}_{i}.png"
+
+            cv2.imwrite(os.path.join(output_images, img_name), img)
+            cv2.imwrite(os.path.join(output_masks, mask_name), msk)
 
             index += 1
 

@@ -1,4 +1,6 @@
+# pyrefly: ignore [missing-import]
 import pandas as pd
+# pyrefly: ignore [missing-import]
 import matplotlib.pyplot as plt
 
 df = pd.read_csv("training_history.csv")

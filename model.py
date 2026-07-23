@@ -1,6 +1,8 @@
 # MODELO DA IA (ESQUELETO)
 
+# pyrefly: ignore [missing-import]
 import torch
+# pyrefly: ignore [missing-import]
 import torch.nn as nn
 
 class DoubleConv(nn.Module):
