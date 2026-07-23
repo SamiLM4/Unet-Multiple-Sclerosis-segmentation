@@ -1,6 +1,7 @@
 # FAZ A MESMA COISA QUE O NOTEBOOK, PREFIRA EXECUTAR ESSE ARQUIVO PARA TREINAR O MODELO DE IA 
 
 import os
+import random
 # pyrefly: ignore [missing-import]
 import torch
 # pyrefly: ignore [missing-import]
@@ -11,6 +12,8 @@ import torch.optim as optim
 import numpy as np
 # pyrefly: ignore [missing-import]
 from torch.utils.data import Dataset, DataLoader, Subset
+# pyrefly: ignore [missing-import]
+import torchvision.transforms.functional as TF
 # pyrefly: ignore [missing-import]
 from torchvision import transforms
 # pyrefly: ignore [missing-import]
@@ -62,7 +65,7 @@ class MRIDataset(Dataset):
 
 
 ############################################
-# TRANSFORMS (CORREÇÃO CRÍTICA)
+# TRANSFORMS
 ############################################
 
 img_transform = transforms.Compose([
@@ -74,6 +77,68 @@ mask_transform = transforms.Compose([
     transforms.Resize((256, 256), interpolation=InterpolationMode.NEAREST),
     transforms.ToTensor()
 ])
+
+
+############################################
+# DATASET COM DATA AUGMENTATION
+############################################
+
+class MRIDatasetAug(Dataset):
+    """
+    Dataset de treino com augmentation sincronizada entre imagem e máscara.
+    Augmentações geométricas (flip, rotação) são aplicadas igualmente nos dois.
+    Jitter de brilho/contraste é aplicado SOMENTE na imagem.
+    """
+
+    def __init__(self, image_dir, mask_dir):
+        self.image_dir = image_dir
+        self.mask_dir = mask_dir
+        self.images = sorted(os.listdir(image_dir))
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, index):
+
+        img_name = self.images[index]
+        img_path = os.path.join(self.image_dir, img_name)
+        mask_path = os.path.join(self.mask_dir, img_name.replace("img", "mask"))
+
+        image = Image.open(img_path).convert("L")
+        mask = Image.open(mask_path).convert("L")
+
+        # --- Redimensionar ---
+        image = TF.resize(image, [256, 256])
+        mask = TF.resize(mask, [256, 256], interpolation=TF.InterpolationMode.NEAREST)
+
+        # --- Augmentações geométricas sincronizadas ---
+        if random.random() > 0.5:
+            image = TF.hflip(image)
+            mask = TF.hflip(mask)
+
+        if random.random() > 0.5:
+            image = TF.vflip(image)
+            mask = TF.vflip(mask)
+
+        if random.random() > 0.5:
+            angle = random.uniform(-15, 15)
+            image = TF.rotate(image, angle)
+            mask = TF.rotate(mask, angle)
+
+        # --- Jitter somente na imagem (não faz sentido na máscara binária) ---
+        if random.random() > 0.5:
+            image = TF.adjust_brightness(image, brightness_factor=random.uniform(0.8, 1.2))
+        if random.random() > 0.5:
+            image = TF.adjust_contrast(image, contrast_factor=random.uniform(0.8, 1.2))
+
+        # --- Converter para tensor ---
+        image = TF.to_tensor(image)
+        mask = TF.to_tensor(mask)
+
+        # Binariza máscara
+        mask = (mask > 0.5).float()
+
+        return image, mask
 
 
 ############################################
@@ -285,6 +350,7 @@ def main(epochs):
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+    # Dataset base (sem aug) — usado para split e para validação
     dataset = MRIDataset(
         image_dir="dataset/images",
         mask_dir="dataset/masks",
@@ -294,7 +360,15 @@ def main(epochs):
 
     train_set, val_set = split_dataset(dataset)
 
-    train_loader = DataLoader(train_set, batch_size=4, shuffle=True)
+    # Substituir o subset de treino por dataset com augmentation
+    train_aug = MRIDatasetAug(
+        image_dir="dataset/images",
+        mask_dir="dataset/masks"
+    )
+    # Manter apenas os índices do split de treino
+    train_set_aug = Subset(train_aug, train_set.indices)
+
+    train_loader = DataLoader(train_set_aug, batch_size=4, shuffle=True)
     val_loader = DataLoader(val_set, batch_size=4, shuffle=False)
 
     model = UNet().to(device)

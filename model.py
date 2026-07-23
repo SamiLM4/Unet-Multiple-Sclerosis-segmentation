@@ -58,4 +58,4 @@ class UNet(nn.Module):
         u2 = torch.cat([u2,d1],dim=1)
         u2 = self.conv2(u2)
 
-        return torch.sigmoid(self.out(u2))
+        return self.out(u2)  # logits crus — sigmoid aplicado na inferência

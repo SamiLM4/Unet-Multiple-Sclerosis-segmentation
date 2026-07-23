@@ -24,5 +24,6 @@ transform = transforms.Compose([
 def predict(image: Image):
     image = transform(image).unsqueeze(0).to(device)
     with torch.no_grad():
-        output = model(image)
-    return output.squeeze().cpu().numpy()  # probabilidade, sem threshold
+        logits = model(image)
+        output = torch.sigmoid(logits)  # converte logits → probabilidades [0,1]
+    return output.squeeze().cpu().numpy()
